@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirVantage — SIM Order Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    color: #222;
+  }
+
+  /* ── TOP NAV ── */
+  .nav {
+    background: #1a1a1a;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    height: 48px;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; margin-right: 16px; }
+  .nav-logo-text { color: #fff; font-size: 14px; font-weight: 600; }
+  .nav-logo-sub  { color: #888; font-size: 11px; }
+  .nav-item { color: #aaa; font-size: 13px; cursor: pointer; padding: 0 4px; transition: color 0.15s; }
+  .nav-item:hover { color: #fff; }
+  .nav-item.active { color: #fff; border-bottom: 2px solid #c0392b; padding-bottom: 2px; }
+  .nav-sep { color: #444; font-size: 13px; }
+
+  /* ── PROTOTYPE BANNER ── */
+  .proto-banner {
+    background: #2d3e50;
+    color: #8eadd4;
+    text-align: center;
+    font-size: 12px;
+    padding: 7px;
+    letter-spacing: 0.03em;
+  }
+  .proto-banner strong { color: #fff; }
+
+  /* ── PAGE LAYOUT ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; }
+  .page-header p  { font-size: 13px; color: #666; margin-top: 4px; }
+
+  /* ── STEP INDICATOR ── */
+  .step-indicator { display: flex; align-items: center; margin-bottom: 28px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .step .num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; transition: all 0.2s; }
+  .step.done .num    { background: #fde8e8; color: #c0392b; }
+  .step.active .num  { background: #c0392b; color: #fff; box-shadow: 0 0 0 3px #c0392b22; }
+  .step.pending .num { background: #e0e0e0; color: #888; }
+  .step.active .lbl  { color: #1a1a1a; font-weight: 600; }
+  .step.pending .lbl, .step.done .lbl { color: #999; }
+  .step-line { flex: 1; height: 1px; background: #ddd; margin: 0 12px; max-width: 80px; }
+
+  /* ── CARD ── */
+  .card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-size: 17px; font-weight: 600; color: #1a1a1a;
+    margin-bottom: 24px; padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .av-badge {
+    font-size: 11px; background: #fde8e8; color: #c0392b;
+    padding: 3px 10px; border-radius: 20px; font-weight: 500;
+  }
+
+  /* ── FORM FIELDS ── */
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block; font-size: 12px; color: #555;
+    margin-bottom: 6px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .field select, .field input[type="text"], .field input[type="number"] {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid #ddd; border-radius: 6px;
+    font-size: 14px; color: #1a1a1a;
+    background: #fff; outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .field select:focus, .field input:focus { border-color: #c0392b; box-shadow: 0 0 0 3px #c0392b11; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field-hint { font-size: 11px; color: #999; margin-top: 4px; }
+
+  /* ── SKU TABLE ── */
+  .sku-wrap { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .sku-header {
+    display: grid; grid-template-columns: 1fr 110px 36px;
+    gap: 8px; padding: 8px 14px;
+    background: #f8f8f8; border-bottom: 1px solid #e5e7eb;
+  }
+  .sku-header span { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sku-row {
+    display: grid; grid-template-columns: 1fr 110px 36px;
+    gap: 8px; padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: center; transition: background 0.1s;
+  }
+  .sku-row:last-child { border-bottom: none; }
+  .sku-row:hover { background: #fafafa; }
+  .sku-row select, .sku-row input[type="number"] {
+    width: 100%; padding: 7px 10px;
+    border: 1px solid #ddd; border-radius: 6px;
+    font-size: 13px; color: #1a1a1a;
+    background: #fff; outline: none; font-family: inherit;
+  }
+  .sku-row select:focus, .sku-row input:focus { border-color: #c0392b; }
+  .remove-btn {
+    background: none; border: none; color: #ccc;
+    cursor: pointer; font-size: 18px; padding: 2px 6px;
+    border-radius: 4px; line-height: 1; transition: all 0.15s;
+  }
+  .remove-btn:hover { background: #fde8e8; color: #c0392b; }
+  .remove-btn:disabled { opacity: 0.2; cursor: default; }
+
+  .add-sku-btn {
+    font-size: 13px; color: #c0392b; background: none;
+    border: 1px dashed #c0392b88; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer; width: 100%;
+    margin-bottom: 16px; display: block; font-family: inherit;
+    transition: background 0.15s;
+  }
+  .add-sku-btn:hover { background: #c0392b08; }
+
+  /* ── BANNERS ── */
+  .banner {
+    border-radius: 8px; padding: 11px 14px;
+    font-size: 13px; margin-bottom: 16px;
+    line-height: 1.5; display: none;
+  }
+  .banner.warning { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
+  .banner .ban-title { font-weight: 600; margin-bottom: 3px; }
+
+  /* ── MOQ PROGRESS ── */
+  .moq-progress { margin-bottom: 20px; display: none; }
+  .moq-track { height: 4px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+  .moq-fill  { height: 4px; border-radius: 4px; transition: width 0.3s ease, background 0.3s ease; }
+  .moq-lbl   { font-size: 12px; color: #888; margin-top: 5px; }
+
+  /* ── SHIPPING OPTIONS ── */
+  .shipping-options { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 8px; }
+  .ship-opt {
+    border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 12px 14px; cursor: pointer; position: relative;
+    transition: all 0.15s;
+  }
+  .ship-opt:hover { border-color: #c0392b66; background: #fafafa; }
+  .ship-opt.selected { border: 2px solid #c0392b; background: #fff5f5; }
+  .ship-name  { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+  .ship-eta   { font-size: 11px; color: #888; margin-top: 3px; }
+  .ship-price { font-size: 16px; font-weight: 700; color: #c0392b; margin-top: 8px; }
+  .ship-price.free  { color: #16a34a; }
+  .ship-price.muted { color: #ccc; font-weight: 400; }
+  .default-badge {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 10px; background: #dcfce7; color: #16a34a;
+    padding: 2px 7px; border-radius: 10px; font-weight: 500;
+  }
+
+  /* ── TOTAL BAR ── */
+  .total-bar {
+    background: #f8f9fa; border-radius: 10px;
+    padding: 14px 18px; display: flex; align-items: center;
+    justify-content: space-between; margin-top: 20px;
+    border: 1px solid #e5e7eb;
+  }
+  .total-left { display: flex; align-items: center; gap: 14px; }
+  .total-label { font-size: 13px; color: #666; }
+  .total-sims  { font-size: 12px; color: #999; margin-top: 2px; }
+  .total-price { font-size: 22px; font-weight: 700; }
+  .free-ship   { font-size: 12px; color: #16a34a; font-weight: 600; margin-top: 2px; }
+
+  /* Ring */
+  .ring-wrap { position: relative; width: 46px; height: 46px; flex-shrink: 0; }
+  .ring-wrap svg { position: absolute; top:0; left:0; transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#1a1a1a; }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #f0f0f0; }
+  .btn-primary {
+    background: #2d3e50; color: #fff; border: none;
+    border-radius: 8px; padding: 10px 28px;
+    font-size: 14px; cursor: pointer; font-weight: 600;
+    font-family: inherit; transition: background 0.15s;
+  }
+  .btn-primary:hover { background: #1a2b3a; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; color: #888; }
+  .btn-secondary {
+    background: #fff; border: 1px solid #d1d5db;
+    border-radius: 8px; padding: 10px 28px;
+    font-size: 14px; cursor: pointer; color: #374151;
+    font-family: inherit; transition: background 0.15s;
+  }
+  .btn-secondary:hover { background: #f9fafb; }
+
+  /* ── SUMMARY ── */
+  .summary-section { margin-bottom: 20px; }
+  .summary-section h3 {
+    font-size: 11px; font-weight: 700; color: #999;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px;
+  }
+  .summary-row {
+    display: flex; justify-content: space-between;
+    font-size: 14px; padding: 9px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .sl { color: #666; }
+  .summary-row .sv { color: #1a1a1a; font-weight: 600; }
+  .summary-total {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; background: #fff5f5;
+    border: 1px solid #fecaca; border-radius: 10px; margin-top: 16px;
+  }
+  .summary-total .tl { font-size: 14px; font-weight: 600; color: #c0392b; }
+  .summary-total .tv { font-size: 24px; font-weight: 700; color: #c0392b; }
+  .summary-note { font-size: 12px; color: #999; margin-top: 10px; }
+
+  /* ── CONFIRM ── */
+  .confirm-card { text-align: center; padding: 32px 24px; }
+  .confirm-icon {
+    width: 64px; height: 64px; background: #dcfce7;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 16px;
+  }
+  .confirm-title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+  .confirm-sub   { font-size: 14px; color: #666; margin-bottom: 24px; }
+  .confirm-details {
+    background: #f8f9fa; border-radius: 10px;
+    padding: 16px; text-align: left; margin-bottom: 24px;
+    border: 1px solid #e5e7eb;
+  }
+  .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 14px;
+    padding: 28px; max-width: 420px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-icon {
+    width: 50px; height: 50px; background: #fff7ed;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; margin-bottom: 16px;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+  .modal-line  { font-size: 13px; color: #555; line-height: 1.65; margin-bottom: 8px; }
+  .modal-line a { color: #c0392b; font-weight: 600; text-decoration: underline; cursor: pointer; }
+  .modal-line strong { color: #1a1a1a; font-weight: 600; }
+  .modal-divider { border: none; border-top: 1px solid #f0f0f0; margin: 14px 0; }
+  .modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .modal-btn-primary {
+    background: #2d3e50; color: #fff; border: none;
+    border-radius: 8px; padding: 11px 16px;
+    font-size: 14px; cursor: pointer; font-weight: 600;
+    font-family: inherit; transition: background 0.15s;
+  }
+  .modal-btn-primary:hover { background: #1a2b3a; }
+  .modal-btn-secondary {
+    background: #fff; border: 1px solid #d1d5db;
+    border-radius: 8px; padding: 11px 16px;
+    font-size: 14px; cursor: pointer; color: #374151;
+    font-family: inherit; transition: background 0.15s;
+  }
+  .modal-btn-secondary:hover { background: #f9fafb; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .field-row { grid-template-columns: 1fr; }
+    .shipping-options { grid-template-columns: 1fr; }
+    .sku-header, .sku-row { grid-template-columns: 1fr 90px 36px; }
+    .page { padding: 20px 16px 48px; }
+    .card { padding: 20px; }
+    .nav { padding: 0 16px; gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <svg width="24" height="24" viewBox="0 0 32 32">
+      <polygon points="16,2 30,28 2,28" fill="none" stroke="#c0392b" stroke-width="2.5"/>
+      <polygon points="16,8 26,26 6,26" fill="#c0392b" opacity="0.4"/>
+    </svg>
+    <div>
+      <div class="nav-logo-text">AirVantage</div>
+      <div class="nav-logo-sub">Backoffice</div>
+    </div>
+  </div>
+  <span class="nav-item">Backend</span>
+  <span class="nav-sep">›</span>
+  <span class="nav-item active">Accounts</span>
+  <span class="nav-sep">›</span>
+  <span class="nav-item">Operators</span>
+  <span class="nav-sep">›</span>
+  <span class="nav-item">System Registry</span>
+</nav>
+
+<!-- PROTOTYPE BANNER -->
+<div class="proto-banner">
+  <strong>PROTOTYPE</strong> — SIM Order Flow v1.0 — For internal review only — Not for production use
+</div>
+
+<!-- E-STORE MODAL -->
+<div class="modal-overlay" id="estore-modal">
+  <div class="modal-box">
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#ea580c"/>
+      </svg>
+    </div>
+    <div class="modal-title">Orders must be above 10 SIMs to submit</div>
+    <div class="modal-line">For small quantities, we recommend visiting our <a onclick="alert('This would redirect to the e-store.')">e-store</a>.</div>
+    <hr class="modal-divider">
+    <div class="modal-line"><strong>Still adding products?</strong> Go back and continue building your order — you need 10 SIMs total to process an order.</div>
+    <div class="modal-actions">
+      <button class="modal-btn-primary" onclick="closeModal()">Go back and add more SIMs</button>
+      <button class="modal-btn-secondary" onclick="alert('This would redirect to the e-store.')">Take me to the e-store</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page">
+  <div class="page-header">
+    <h1>Orders</h1>
+    <p>Manage and submit SIM card orders for customer accounts</p>
+  </div>
+
+  <!-- STEP INDICATOR -->
+  <div class="step-indicator">
+    <div class="step active" id="s1i"><div class="num">1</div><div class="lbl">Order details</div></div>
+    <div class="step-line"></div>
+    <div class="step pending" id="s2i"><div class="num">2</div><div class="lbl">Review & confirm</div></div>
+    <div class="step-line"></div>
+    <div class="step pending" id="s3i"><div class="num">3</div><div class="lbl">Order placed</div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="step1">
+    <div class="card">
+      <div class="card-title">
+        Order SIM Cards / Hardware
+        <span class="av-badge">Multi-SKU</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Account</label>
+          <select>
+            <option>Chargepoint - OnRamp</option>
+            <option>Avantek Solutions Corp</option>
+            <option>RF Conception</option>
+            <option>Pune Internal Tests</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Delivery Address</label>
+          <select>
+            <option>Billing Service</option>
+            <option>8372 16th Ave, Burnaby, BC, Canada</option>
+            <option>16a Rue de l'Electricite, 67800 Hoenheim, France</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:8px;">
+        <label>Product References & Quantities</label>
+        <div class="field-hint">MOQ = 10 combined total &nbsp;/&nbsp; IOQ = 1 per line item</div>
+      </div>
+
+      <div id="ban-moq" class="banner warning">
+        <div class="ban-title">Below minimum order quantity</div>
+        <span id="ban-moq-text"></span>
+      </div>
+      <div id="ban-restrict" class="banner warning">
+        <div class="ban-title">Restricted quantity range</div>
+        <span id="ban-restrict-text"></span>
+      </div>
+
+      <div class="sku-wrap">
+        <div class="sku-header">
+          <span>Product Reference</span>
+          <span>Quantity</span>
+          <span></span>
+        </div>
+        <div id="sku-rows"></div>
+      </div>
+
+      <button class="add-sku-btn" id="add-sku-btn">+ Add another product reference</button>
+
+      <div class="moq-progress" id="moq-progress">
+        <div class="moq-track"><div class="moq-fill" id="moq-fill" style="width:0%;"></div></div>
+        <div class="moq-lbl" id="moq-label">Minimum 10 SIMs required to place an order</div>
+      </div>
+
+      <div class="field">
+        <label>Shipping Service</label>
+        <div class="shipping-options" id="shipping-opts"></div>
+      </div>
+
+      <div class="total-bar">
+        <div class="total-left">
+          <div class="ring-wrap">
+            <svg width="46" height="46" viewBox="0 0 46 46">
+              <circle cx="23" cy="23" r="19" fill="none" stroke="#e5e7eb" stroke-width="3.5"/>
+              <circle cx="23" cy="23" r="19" fill="none" id="ring-circle" stroke="#c0392b" stroke-width="3.5" stroke-dasharray="119" stroke-dashoffset="119" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-center" id="ring-num">0</div>
+          </div>
+          <div>
+            <div class="total-label">Shipping cost</div>
+            <div class="total-sims" id="total-sims-label">0 SIMs total</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="total-price" id="total-price-display" style="color:#ccc;">—</div>
+          <div class="free-ship" id="free-ship-label" style="display:none;">Free shipping applied</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary">Cancel</button>
+        <button class="btn-primary" id="continue-btn">Review Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2" style="display:none;">
+    <div class="card">
+      <div class="card-title">Review Your Order</div>
+      <div class="summary-section">
+        <h3>Items ordered</h3>
+        <div id="summary-items"></div>
+      </div>
+      <div class="summary-section">
+        <h3>Shipping</h3>
+        <div class="summary-row"><span class="sl">Service</span><span class="sv" id="sum-service"></span></div>
+        <div class="summary-row"><span class="sl">Delivery estimate</span><span class="sv" id="sum-eta"></span></div>
+        <div class="summary-row"><span class="sl">Delivery address</span><span class="sv" id="sum-address">Billing Service</span></div>
+      </div>
+      <div class="summary-total">
+        <div class="tl">Shipping charge</div>
+        <div class="tv" id="sum-total"></div>
+      </div>
+      <p class="summary-note">SIM unit pricing is billed separately per your existing contract. This charge covers shipping only.</p>
+      <div class="btn-row">
+        <button class="btn-secondary" id="back-btn">Back</button>
+        <button class="btn-primary" id="place-btn">Place Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="step3" style="display:none;">
+    <div class="card confirm-card">
+      <div class="confirm-icon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="confirm-title">Order placed successfully</div>
+      <div class="confirm-sub" id="confirm-sub"></div>
+      <div class="confirm-details" id="confirm-details"></div>
+      <div class="confirm-actions">
+        <button class="btn-secondary" id="another-btn">Place another order</button>
+        <button class="btn-primary">View order status</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+var PRODUCTS = [
+  "SW SAMPLE PREMIUM TRIPLE - 6001513",
+  "AT&T-EOD 4FF CONS - 6001263",
+  "SW ADVANCED4 TRIPLE - 6001543",
+  "MBQT V2 3FF - 6001112",
+  "KIGEN MFF2 eSIM - 6001890",
+  "DCS BROADBAND 4FF - 6001320",
+  "SW ADVANCED6 TRIPLE - 6001580"
+];
+var SHIPPING = [
+  { id:"ground",    name:"Standard Ground",    eta:"3–5 business days",    prices:[10,20,20,30,60,65,0], isDefault:true },
+  { id:"overnight", name:"Standard Overnight", eta:"Next day by 3:30 PM",  prices:[11,21,21,31,61,66,0] },
+  { id:"priority",  name:"Priority Overnight", eta:"Next day by 10:30 AM", prices:[12,22,22,32,70,75,0] }
+];
+var TIERS = [
+  {min:10,max:50},{min:51,max:100},{min:101,max:300},
+  {min:301,max:500},{min:501,max:1000},{min:1001,max:1500},
+  {min:1501,max:999999,free:true}
+];
+var skuRows = [], selectedShipping = "ground", skuId = 0;
+
+function getTierIdx(q) { for(var i=0;i<TIERS.length;i++) if(q>=TIERS[i].min&&q<=TIERS[i].max) return i; return -1; }
+function getPrice(q,sid) { if(q>=2000) return 0; var t=getTierIdx(q); if(t<0) return null; if(TIERS[t].free) return 0; for(var i=0;i<SHIPPING.length;i++) if(SHIPPING[i].id===sid) return SHIPPING[i].prices[t]; return null; }
+function getTotal() { var t=0; for(var i=0;i<skuRows.length;i++) t+=parseInt(skuRows[i].qty)||0; return t; }
+
+function addSku() { skuRows.push({id:skuId++, product:PRODUCTS[0], qty:""}); renderRows(); }
+function removeSku(id) { if(skuRows.length<=1) return; var n=[]; for(var i=0;i<skuRows.length;i++) if(skuRows[i].id!==id) n.push(skuRows[i]); skuRows=n; renderRows(); }
+function updProd(id,val) { for(var i=0;i<skuRows.length;i++) if(skuRows[i].id===id){skuRows[i].product=val;break;} updateTotals(); }
+function updQty(id,val)  { for(var i=0;i<skuRows.length;i++) if(skuRows[i].id===id){skuRows[i].qty=val===""?"":(parseInt(val)||"");break;} updateTotals(); }
+
+function renderRows() {
+  var html = "";
+  for(var i=0;i<skuRows.length;i++) {
+    var row=skuRows[i], opts="";
+    for(var j=0;j<PRODUCTS.length;j++) opts+='<option'+(PRODUCTS[j]===row.product?' selected':'')+'>'+PRODUCTS[j]+'</option>';
+    html += '<div class="sku-row">';
+    html += '<select onchange="updProd('+row.id+',this.value)">'+opts+'</select>';
+    html += '<input type="number" min="1" value="'+(row.qty===""?"":row.qty)+'" placeholder="Qty" oninput="updQty('+row.id+',this.value)">';
+    html += '<button class="remove-btn" onclick="removeSku('+row.id+')" '+(skuRows.length<=1?'disabled':'')+'>×</button>';
+    html += '</div>';
+  }
+  document.getElementById("sku-rows").innerHTML = html;
+  updateTotals();
+}
+
+function updateTotals() {
+  var total = getTotal();
+  var bm = document.getElementById("ban-moq");
+  var br = document.getElementById("ban-restrict");
+  bm.style.display = "none"; br.style.display = "none";
+
+  if(total > 5 && total < 10) {
+    bm.style.display = "block";
+    document.getElementById("ban-moq-text").textContent = "You have "+total+" SIM"+(total!==1?"s":"")+" so far. Add "+(10-total)+" more to reach the minimum of 10 SIMs.";
+  } else if(total >= 301 && total <= 499) {
+    br.style.display = "block";
+    document.getElementById("ban-restrict-text").textContent = "Total ("+total+" SIMs) is in a restricted range. Please adjust to 300 or 500 — SIMs are packaged in boxes of 500.";
+  } else if(total >= 501 && total <= 999) {
+    br.style.display = "block";
+    document.getElementById("ban-restrict-text").textContent = "Total ("+total+" SIMs) is in a restricted range. Please adjust to 500 or 1,000 — SIMs are packaged in boxes of 500.";
+  }
+
+  var prog = document.getElementById("moq-progress");
+  if(total < 10) {
+    prog.style.display = "block";
+    var fill = document.getElementById("moq-fill");
+    fill.style.width = Math.min((total/10)*100,100)+"%";
+    fill.style.background = total <= 5 ? "#f59e0b" : "#c0392b";
+    document.getElementById("moq-label").textContent = total===0 ? "Minimum 10 SIMs required to place an order" : (total+"/10 SIMs — "+(10-total)+" more needed");
+  } else prog.style.display = "none";
+
+  var ring = document.getElementById("ring-circle");
+  ring.style.strokeDashoffset = 119 - (Math.min(total/2000,1)*119);
+  ring.style.stroke = total>=2000?"#16a34a":total>=10?"#c0392b":"#f59e0b";
+  document.getElementById("ring-num").textContent = total>999?(total>=2000?"2k+":(Math.round(total/100)/10)+"k"):total;
+  document.getElementById("total-sims-label").textContent = total+" SIM"+(total!==1?"s":"")+" total";
+
+  var price = getPrice(total, selectedShipping);
+  var isFree = total >= 2000;
+  var priceEl = document.getElementById("total-price-display");
+  var freeEl  = document.getElementById("free-ship-label");
+  if(isFree) { priceEl.textContent="FREE"; priceEl.style.color="#16a34a"; freeEl.style.display="block"; }
+  else if(price!==null && total>=10) { priceEl.textContent="$"+price+".00"; priceEl.style.color="#1a1a1a"; freeEl.style.display="none"; }
+  else { priceEl.textContent="—"; priceEl.style.color="#ccc"; freeEl.style.display="none"; }
+
+  var hardBlock = (total>5&&total<10)||(total>=301&&total<=499)||(total>=501&&total<=999);
+  document.getElementById("continue-btn").disabled = hardBlock;
+  renderShipping(total);
+}
+
+function renderShipping(total) {
+  if(total===undefined) total=getTotal();
+  var html = "";
+  for(var i=0;i<SHIPPING.length;i++) {
+    var s=SHIPPING[i], price=getPrice(total,s.id);
+    var str = total>=2000?"FREE":(price!==null&&total>=10?"$"+price+".00":"—");
+    var cls = total>=2000?" free":(price===null||total<10?" muted":"");
+    html += '<div class="ship-opt'+(s.id===selectedShipping?" selected":"")+'" onclick="selShip(\''+s.id+'\')">';
+    if(s.isDefault) html += '<span class="default-badge">Default</span>';
+    html += '<div class="ship-name">'+s.name+'</div>';
+    html += '<div class="ship-eta">'+s.eta+'</div>';
+    html += '<div class="ship-price'+cls+'">'+str+'</div>';
+    html += '</div>';
+  }
+  document.getElementById("shipping-opts").innerHTML = html;
+}
+
+function selShip(id) { selectedShipping=id; renderShipping(); updateTotals(); }
+
+function trySubmit() {
+  var total = getTotal();
+  if(total <= 5) { document.getElementById("estore-modal").classList.add("open"); return; }
+  goToStep2();
+}
+
+function closeModal() { document.getElementById("estore-modal").classList.remove("open"); }
+
+function goToStep2() {
+  var total=getTotal(), price=getPrice(total,selectedShipping), ship=null;
+  for(var i=0;i<SHIPPING.length;i++) if(SHIPPING[i].id===selectedShipping){ship=SHIPPING[i];break;}
+  var html="";
+  for(var i=0;i<skuRows.length;i++) html+='<div class="summary-row"><span class="sl">'+skuRows[i].product+'</span><span class="sv">'+skuRows[i].qty+' SIMs</span></div>';
+  html+='<div class="summary-row" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:10px;"><span class="sl" style="font-weight:700;">Total SIMs</span><span class="sv">'+total+' SIMs</span></div>';
+  document.getElementById("summary-items").innerHTML = html;
+  document.getElementById("sum-service").textContent = ship.name;
+  document.getElementById("sum-eta").textContent = ship.eta;
+  document.getElementById("sum-total").textContent = total>=2000?"FREE":"$"+price+".00";
+  setStep(2);
+}
+
+function goToStep3() {
+  var total=getTotal(), price=getPrice(total,selectedShipping), ship=null;
+  for(var i=0;i<SHIPPING.length;i++) if(SHIPPING[i].id===selectedShipping){ship=SHIPPING[i];break;}
+  var oid = "SO-"+Math.random().toString(36).substring(2,10).toUpperCase();
+  document.getElementById("confirm-sub").textContent = "Order "+oid+" has been submitted. The provisioning team will process it shortly.";
+  document.getElementById("confirm-details").innerHTML =
+    '<div class="summary-row"><span class="sl">Order ID</span><span class="sv">'+oid+'</span></div>'+
+    '<div class="summary-row"><span class="sl">Total SIMs</span><span class="sv">'+total+'</span></div>'+
+    '<div class="summary-row"><span class="sl">Shipping service</span><span class="sv">'+ship.name+'</span></div>'+
+    '<div class="summary-row" style="border:none;"><span class="sl">Shipping charge</span><span class="sv">'+(total>=2000?"FREE":"$"+price+".00")+'</span></div>';
+  setStep(3);
+}
+
+function setStep(n) {
+  for(var i=1;i<=3;i++) document.getElementById("step"+i).style.display=i===n?"block":"none";
+  var ids=["s1i","s2i","s3i"];
+  for(var i=0;i<ids.length;i++) document.getElementById(ids[i]).className="step "+(i+1<n?"done":i+1===n?"active":"pending");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function resetAll() { skuRows=[]; selectedShipping="ground"; skuId=0; addSku(); setStep(1); }
+
+document.getElementById("add-sku-btn").addEventListener("click", addSku);
+document.getElementById("continue-btn").addEventListener("click", trySubmit);
+document.getElementById("back-btn").addEventListener("click", function(){ setStep(1); });
+document.getElementById("place-btn").addEventListener("click", goToStep3);
+document.getElementById("another-btn").addEventListener("click", resetAll);
+
+addSku();
+renderShipping(0);
+</script>
+</body>
+</html>
